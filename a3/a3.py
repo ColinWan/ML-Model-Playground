@@ -8,11 +8,14 @@ from PIL import Image
 from scipy import ndimage
 from helpers import *
 
+
 plt.rcParams['figure.figsize'] = (5.0, 4.0) # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
 train_x_orig, train_y, test_x_orig, test_y, classes = load_dataset()
+
+print(train_y.shape)
 
 m_train = train_x_orig.shape[0]
 num_px = train_x_orig.shape[1]
@@ -29,7 +32,7 @@ n_y = 1
 layers_dims = n_x, 7, n_y
 
 
-def two_layer_model(X, Y, layers_dims, learning_rate=0.075, num_iterations=1000, print_cost=False):
+def two_layer_model(X, Y, layers_dims, learning_rate=0.0075, num_iterations=3000, print_cost=False):
     """
     Implements a two-layer neural network: LINEAR->RELU->LINEAR->SIGMOID.
 
@@ -46,11 +49,12 @@ def two_layer_model(X, Y, layers_dims, learning_rate=0.075, num_iterations=1000,
     """
     costs = []
     parameters = initialize_parameters_deep(layers_dims)
-    AL, cache = L_model_forward(X, parameters)
+    # AL, cache = L_model_forward(X, parameters)
     for i in range(num_iterations):
-        grads = L_model_backward(AL, Y, cache)
-        parameters = update_parameters(parameters, grads, learning_rate)
         AL, temp = L_model_forward(X, parameters)
+        cost = compute_cost(AL, Y)
+        grads = L_model_backward(AL, Y, temp)
+        parameters = update_parameters(parameters, grads, learning_rate)
         cost = compute_cost(AL, Y)
         if print_cost and i % 100 == 0:
             print("Cost after iteration {}: {}".format(i, np.squeeze(cost)))
@@ -60,5 +64,5 @@ def two_layer_model(X, Y, layers_dims, learning_rate=0.075, num_iterations=1000,
 
 model, cost = two_layer_model(train_x, train_y, layers_dims, print_cost=True)
 predict_train, temp = L_model_forward(train_x, model)
-print(predict_train, 'result')
-# print(np.sum(predict_train-train_y)/train_y.shape[0])
+predict_train = np.array(predict_train>0.5).astype(int)
+print((np.sum(np.array(predict_train==train_y))/train_y.shape[1]))
