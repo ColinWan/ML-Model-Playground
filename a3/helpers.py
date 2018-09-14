@@ -26,9 +26,11 @@ def initialize_parameters_deep(layer_dims):
                     Wl -- weight matrix of shape (layer_dims[l], layer_dims[l-1])
                     bl -- bias vector of shape (layer_dims[l], 1)
     """
+
     dct = {}
     for i in range(len(layer_dims) - 1):
-        dct['W{}'.format(i+1)] = np.random.randn(layer_dims[i+1], layer_dims[i])*0.01
+        dct['W{}'.format(i+1)] = np.random.randn(layer_dims[i+1], layer_dims[i])\
+                                 /np.sqrt(layer_dims[i])
         dct['b{}'.format(i+1)] = np.zeros((layer_dims[i+1], 1))
     return dct
 
@@ -183,14 +185,12 @@ def L_model_backward(AL, Y, caches):
     Returns:
     grads -- A dictionary with the gradients
     """
-    # print(caches)
     grads = {}
     L = len(caches)
     Y = Y.reshape(AL.shape)
     dAL = (np.divide(1 - Y, 1 - AL) - np.divide(Y, AL))
     current_cache = caches[-1]
     grads["dA" + str(L-1)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL, current_cache, 'sigmoid')
-    # print('pass')
     for l in reversed(range(L - 1)):
         current_cache = caches[l]
         dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads['dA' + str(l + 1)], current_cache, 'relu')
@@ -219,4 +219,35 @@ def update_parameters(parameters, grads, learning_rate):
         parameters['b' + str(i)] -= learning_rate*grads['db' + str(i)]
     return parameters
 
+def predict(X, y, parameters):
+    """
+    This function is used to predict the results of a  L-layer neural network.
 
+    Arguments:
+    X -- data set of examples you would like to label
+    parameters -- parameters of the trained model
+
+    Returns:
+    p -- predictions for the given dataset X
+    """
+
+    m = X.shape[1]
+    n = len(parameters) // 2  # number of layers in the neural network
+    p = np.zeros((1, m))
+
+    # Forward propagation
+    probas, caches = L_model_forward(X, parameters)
+
+    # convert probas to 0/1 predictions
+    for i in range(0, probas.shape[1]):
+        if probas[0, i] > 0.5:
+            p[0, i] = 1
+        else:
+            p[0, i] = 0
+
+    # print results
+    # print ("predictions: " + str(p))
+    # print ("true labels: " + str(y))
+    print("Accuracy: " + str(np.sum((p == y) / m)))
+
+    return p
