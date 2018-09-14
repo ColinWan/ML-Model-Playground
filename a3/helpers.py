@@ -2,7 +2,7 @@ import numpy as np
 from math import e
 
 def sigmoid(x):
-    return 1/(1+e**(-x)), {'Z': x}
+    return 1/(1+np.exp(-x)), {'Z': x}
 
 
 def relu(x):
@@ -33,7 +33,7 @@ def initialize_parameters_deep(layer_dims):
     return dct
 
 
-def linear_forward(A, W, b):
+def linear_forward(A_prev, W, b):
     """
     Implement the linear part of a layer's forward propagation.
 
@@ -47,7 +47,7 @@ def linear_forward(A, W, b):
     cache -- a python dictionary containing "A", "W" and "b" ; stored for computing the backward pass
     efficiently
     """
-    return W@A+b, {'A': A, 'W': W, 'b': b}
+    return W@A_prev+b, {'A_prev': A_prev, 'W': W, 'b': b}
 
 
 def linear_activation_forward(A_prev, W, b, activation):
@@ -88,13 +88,22 @@ def L_model_forward(X, parameters):
                 every cache of linear_activation_forward() (there are L-1 of them, indexed from 0 to L-1)
     """
     l = int(0.5*len(parameters))
-    A, temp = linear_activation_forward(X, parameters['W1'], parameters['b1'], 'relu')
-    cache = [{'linear_cache': temp['linear_cache'], 'activation_cache': temp['activation_cache']}]
-    for i in range(2, l):
-        A, temp = linear_activation_forward(A, parameters['W{}'.format(i)], parameters['b{}'.format(i)], 'relu')
-        cache.append({'linear_cache': temp['linear_cache'], 'activation_cache': temp['activation_cache']})
-    AL, temp = linear_activation_forward(A, parameters['W{}'.format(l)], parameters['b{}'.format(l)], 'sigmoid')
-    cache.append({'linear_cache': temp['linear_cache'], 'activation_cache': temp['activation_cache']})
+    A = X
+    cache = []
+
+    for i in range(1, l):
+        A, temp = linear_activation_forward(A, parameters['W{}'.format(i)],
+                                            parameters['b{}'.format(i)],
+                                            'relu')
+
+        cache.append({'linear_cache': temp['linear_cache'],
+                      'activation_cache': temp['activation_cache']})
+
+    AL, temp = linear_activation_forward(A, parameters['W{}'.format(l)],
+                                         parameters['b{}'.format(l)],
+                                         'sigmoid')
+    cache.append({'linear_cache': temp['linear_cache'],
+                  'activation_cache': temp['activation_cache']})
 
     return AL, cache
 
@@ -126,7 +135,7 @@ def linear_backward(dZ, cache):
     dW -- Gradient of the cost with respect to W (current layer l), same shape as W
     db -- Gradient of the cost with respect to b (current layer l), same shape as b
     """
-    A_prev, W, b = cache['A'], cache['W'], cache['b']
+    A_prev, W, b = cache['A_prev'], cache['W'], cache['b']
     m = dZ.shape[1]
     dA_prev = W.T @ dZ
     dW = dZ @ A_prev.T / m
@@ -155,7 +164,8 @@ def linear_activation_backward(dA, cache, activation):
         dZ = np.multiply(dA, np.multiply(temp, 1 - temp))
         return linear_backward(dZ, cache)
     elif activation == 'relu':
-        dZ = np.multiply(dA, np.array(0 < Z).astype(int))
+        dZ = np.array(dA, copy=True)
+        dZ[Z<0] = 0
         return linear_backward(dZ, cache)
 
 
@@ -179,15 +189,14 @@ def L_model_backward(AL, Y, caches):
     Y = Y.reshape(AL.shape)
     dAL = (np.divide(1 - Y, 1 - AL) - np.divide(Y, AL))
     current_cache = caches[-1]
-    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL, current_cache, 'sigmoid')
+    grads["dA" + str(L-1)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL, current_cache, 'sigmoid')
     # print('pass')
     for l in reversed(range(L - 1)):
         current_cache = caches[l]
-        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads['dA' + str(l + 2)], current_cache, 'relu')
-        grads["dA" + str(l + 1)] = dA_prev_temp
+        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads['dA' + str(l + 1)], current_cache, 'relu')
+        grads["dA" + str(l)] = dA_prev_temp
         grads["dW" + str(l + 1)] = dW_temp
         grads["db" + str(l + 1)] = db_temp
-
     return grads
 
 
